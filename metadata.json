@@ -1,0 +1,6 @@
+{
+  "name": "Cainta Photography Studio MIS",
+  "description": "A comprehensive Management Information System for photography studio selection, bookings, print sales, reporting, and AI chatbot support in Cainta, Rizal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
