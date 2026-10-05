@@ -24,6 +24,7 @@ A full-stack web platform connecting customers with photography studios across C
 - [Booking and Payment Flow](#booking-and-payment-flow)
 - [Studio Registration and Approval Flow](#studio-registration-and-approval-flow)
 - [Data Flow Diagram](#data-flow-diagram-dfd)
+- [Gane-Sarson DFD Levels](#gane-sarson-dfd-levels)
 - [Detailed End-to-End Process Flow](#detailed-end-to-end-process-flow)
 - [Status Reference](#status-reference)
 - [Architecture and Tech Stack](#architecture-and-tech-stack)
@@ -261,6 +262,359 @@ flowchart LR
 | Protected Media Files | IDs, permits, payment proofs, proof photos, hero images, and catalog images — each with owner, purpose, checksum, and access status |
 | CMS and System Settings | Hero content, About content, FAQs, FAQ suggestions from chatbot, custom pages, theme colors, module toggles, audio settings, demo video, and font/header preferences |
 | Audit Events | Immutable log of all administrative actions with actor, entity, before/after values, and IP address |
+
+---
+
+## Gane-Sarson DFD Levels
+
+This section presents the system's data flows using the **Gane-Sarson notation** across all decomposition levels. Each level breaks down the system into progressively finer subprocesses.
+
+> **Notation key (Gane-Sarson)**
+> - **Rectangle** — External entity (source or sink of data)
+> - **Rounded rectangle / bubble** — Process (numbered by level)
+> - **Open-ended rectangle** — Data store
+> - **Arrow** — Data flow with label
+
+---
+
+### Level 0 — Context Diagram
+
+Shows the entire system as a single process and its interactions with all external entities.
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+    StudioOwner([Studio Owner / Staff])
+    SuperAdmin([Super Admin])
+    EmailSMTP([Email / SMTP Service])
+    GeminiAI([Google Gemini AI])
+    GoogleOAuth([Google OAuth])
+    CloudStorage([Cloudinary / Local Disk])
+
+    CPS(["0\nCainta Photography\nStudio MIS"])
+
+    Customer -->|"Registration, login, bookings,\npayments, photo selections,\nprint orders, reviews"| CPS
+    CPS -->|"Booking confirmations, payment status,\nproof galleries, receipts, notifications"| Customer
+
+    StudioOwner -->|"Studio profile, catalog, availability,\npayment verification, proofs,\nprint fulfillment, staff management"| CPS
+    CPS -->|"Booking list, payment proofs,\nanalytics, notifications"| StudioOwner
+
+    SuperAdmin -->|"Studio approvals, user management,\ncontent settings, audit queries"| CPS
+    CPS -->|"Platform reports, audit log,\napplication status, notifications"| SuperAdmin
+
+    CPS -->|"Outbound email alerts\nand reminders"| EmailSMTP
+    GeminiAI -->|"AI chatbot completions"| CPS
+    GoogleOAuth -->|"OAuth token verification"| CPS
+    CloudStorage -->|"Stored / retrieved media files"| CPS
+    CPS -->|"Media upload / retrieval requests"| CloudStorage
+```
+
+---
+
+### Level 1 — First Decomposition
+
+Breaks the main system into its primary subprocesses.
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+    StudioOwner([Studio Owner / Staff])
+    SuperAdmin([Super Admin])
+    EmailSMTP([Email / SMTP Service])
+    GeminiAI([Google Gemini AI])
+    GoogleOAuth([Google OAuth])
+    CloudStorage([Cloudinary / Local Disk])
+
+    DS_Users[/"D1 — Users &\nCustomers"\]
+    DS_Studios[/"D2 — Studios &\nCatalog"\]
+    DS_Schedules[/"D3 — Availability &\nBookings"\]
+    DS_Payments[/"D4 — Payments &\nGCash Sessions"\]
+    DS_PrintOrders[/"D5 — Print Products\n& Orders"\]
+    DS_Media[/"D6 — Protected\nMedia Files"\]
+    DS_Content[/"D7 — CMS &\nSystem Settings"\]
+    DS_Audit[/"D8 — Audit Events"\]
+
+    P1(["1.0\nAuthentication &\nAccount Management"])
+    P2(["2.0\nStudio Directory\n& Catalog"])
+    P3(["3.0\nBooking &\nAvailability Management"])
+    P4(["4.0\nPayment\nVerification"])
+    P5(["5.0\nPrint Order\nFulfillment"])
+    P6(["6.0\nPhoto Proofing\nGallery"])
+    P7(["7.0\nAdministration &\nContent Management"])
+    P8(["8.0\nNotification\nService"])
+    P9(["9.0\nAI Chatbot"])
+    P10(["10.0\nProtected\nMedia Store"])
+
+    Customer -->|"Credentials / OAuth token"| P1
+    P1 <-->|"Account records"| DS_Users
+    P1 -->|"Auth result / session"| Customer
+    GoogleOAuth -->|"Token verification response"| P1
+
+    Customer -->|"Search & filter queries"| P2
+    P2 <-->|"Studio & catalog data"| DS_Studios
+    P2 -->|"Verified studio listings"| Customer
+
+    Customer -->|"Service, date & time selection"| P3
+    StudioOwner -->|"Availability rules, confirmations"| P3
+    P3 <-->|"Booking & schedule records"| DS_Schedules
+    P3 <-->|"Catalog pricing"| DS_Studios
+    P3 -->|"Booking status"| Customer
+    P3 -->|"Booking alerts"| P8
+
+    Customer -->|"Payment proof & reference"| P4
+    StudioOwner -->|"Payment approval / rejection"| P4
+    P4 <-->|"Payment records"| DS_Payments
+    P4 -->|"Payment status"| Customer
+    P4 -->|"Payment alerts"| P8
+
+    Customer -->|"Print product, photo & quantity"| P5
+    StudioOwner -->|"Order processing & fulfillment"| P5
+    P5 <-->|"Print order records"| DS_PrintOrders
+    P5 -->|"Order status & receipt"| Customer
+    P5 -->|"Order alerts"| P8
+
+    StudioOwner -->|"Proof photos & delivery link"| P6
+    Customer -->|"Photo selections & notes"| P6
+    P6 <-->|"Gallery media"| DS_Media
+    P6 -->|"Proof gallery & final delivery"| Customer
+
+    StudioOwner -->|"Profile & catalog updates"| P7
+    SuperAdmin -->|"Approvals, settings & content"| P7
+    P7 <-->|"CMS & settings data"| DS_Content
+    P7 <-->|"User & studio records"| DS_Users
+    P7 <-->|"Studio records"| DS_Studios
+    P7 -->|"Admin actions"| DS_Audit
+    P7 -->|"Admin alerts"| P8
+
+    P8 -->|"In-app & email alerts"| Customer
+    P8 -->|"In-app & email alerts"| StudioOwner
+    P8 -->|"Administrative alerts"| SuperAdmin
+    P8 -->|"SMTP delivery"| EmailSMTP
+
+    Customer -->|"Chat questions"| P9
+    GeminiAI -->|"AI completions"| P9
+    P9 -->|"Responses"| Customer
+    P9 -->|"FAQ suggestions"| DS_Content
+
+    Customer -->|"Document & photo uploads"| P10
+    StudioOwner -->|"Permit, ID & proof uploads"| P10
+    SuperAdmin -->|"Media review & activation"| P10
+    P10 <-->|"Media file records"| DS_Media
+    P10 <-->|"File storage"| CloudStorage
+```
+
+---
+
+### Level 2 — Second Decomposition
+
+Breaks selected Level 1 processes into more detailed subprocesses.
+
+#### 2.1 — Authentication & Account Management (expanded from Process 1.0)
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+    StudioOwner([Studio Owner])
+    GoogleOAuth([Google OAuth])
+
+    DS_Users[/"D1 — Users & Customers"\]
+
+    P1_1(["1.1\nLocal\nRegistration"])
+    P1_2(["1.2\nGoogle OAuth\nSign-In"])
+    P1_3(["1.3\nLocal\nLogin"])
+    P1_4(["1.4\nPassword Reset\n(OTP)"])
+    P1_5(["1.5\nSession &\nRate-Limit Management"])
+
+    Customer -->|"Name, email, password, role"| P1_1
+    P1_1 -->|"Hashed credentials"| DS_Users
+    P1_1 -->|"Account created"| Customer
+
+    Customer -->|"Google ID token"| P1_2
+    GoogleOAuth -->|"Token verification"| P1_2
+    P1_2 <-->|"OAuth account record"| DS_Users
+    P1_2 -->|"Session token"| Customer
+
+    Customer -->|"Email & password"| P1_3
+    StudioOwner -->|"Email & password"| P1_3
+    P1_3 <-->|"Credential lookup"| DS_Users
+    P1_3 -->|"Session token / lockout notice"| Customer
+
+    Customer -->|"Email address"| P1_4
+    P1_4 <-->|"OTP record"| DS_Users
+    P1_4 -->|"OTP email"| Customer
+    Customer -->|"6-digit OTP & new password"| P1_4
+    P1_4 -->|"Password updated"| DS_Users
+
+    P1_3 -->|"Failed-attempt count"| P1_5
+    P1_5 -->|"Lockout / session expiry"| Customer
+```
+
+#### 2.2 — Booking & Availability Management (expanded from Process 3.0)
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+    StudioOwner([Studio Owner / Staff])
+
+    DS_Schedules[/"D3 — Availability & Bookings"\]
+    DS_Studios[/"D2 — Studios & Catalog"\]
+
+    P3_1(["3.1\nAvailability\nRule Setup"])
+    P3_2(["3.2\nSlot Generation\n& Conflict Check"])
+    P3_3(["3.3\nBooking\nCreation"])
+    P3_4(["3.4\nBooking\nConfirmation"])
+    P3_5(["3.5\nReschedule\nRequest"])
+    P3_6(["3.6\nCancellation\n& Status History"])
+
+    StudioOwner -->|"Day-of-week hours, slot duration,\nblackout dates"| P3_1
+    P3_1 -->|"Availability & blackout rules"| DS_Schedules
+
+    Customer -->|"Requested date & studio"| P3_2
+    P3_2 <-->|"Existing bookings & rules"| DS_Schedules
+    P3_2 -->|"Available time slots"| Customer
+
+    Customer -->|"Service, package, add-ons,\ntime slot, notes, payment type"| P3_3
+    P3_3 <-->|"Pricing data"| DS_Studios
+    P3_3 -->|"New booking record"| DS_Schedules
+    P3_3 -->|"Booking reference"| Customer
+
+    StudioOwner -->|"Confirm or reject booking"| P3_4
+    P3_4 <-->|"Booking record"| DS_Schedules
+    P3_4 -->|"Status: Confirmed / Rejected"| Customer
+
+    Customer -->|"New date, time & reason"| P3_5
+    P3_5 <-->|"Reschedule request record"| DS_Schedules
+    StudioOwner -->|"Approve or reject reschedule"| P3_5
+    P3_5 -->|"Reschedule outcome"| Customer
+
+    Customer -->|"Cancellation request"| P3_6
+    StudioOwner -->|"Cancellation / no-show update"| P3_6
+    P3_6 -->|"Status history entry"| DS_Schedules
+```
+
+#### 2.3 — Payment Verification (expanded from Process 4.0)
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+    StudioOwner([Studio Owner])
+
+    DS_Payments[/"D4 — Payments & GCash Sessions"\]
+    DS_Media[/"D6 — Protected Media Files"\]
+
+    P4_1(["4.1\nGCash / Maya\nQR Session Init"])
+    P4_2(["4.2\nPayment Proof\nUpload"])
+    P4_3(["4.3\nManual Cash\nRecording"])
+    P4_4(["4.4\nPayment\nVerification"])
+    P4_5(["4.5\nSSE Real-Time\nStatus Push"])
+
+    Customer -->|"Selected payment method"| P4_1
+    P4_1 <-->|"QR session record"| DS_Payments
+    P4_1 -->|"Studio QR code & account info"| Customer
+
+    Customer -->|"Screenshot & reference number"| P4_2
+    P4_2 -->|"Proof file"| DS_Media
+    P4_2 -->|"Pending payment record"| DS_Payments
+
+    StudioOwner -->|"Cash amount & tendered"| P4_3
+    P4_3 -->|"Paid cash record"| DS_Payments
+
+    StudioOwner -->|"Approve or reject proof"| P4_4
+    P4_4 <-->|"Payment record update"| DS_Payments
+    P4_4 -->|"Fraud score & status"| DS_Payments
+
+    P4_4 -->|"Verified / rejected event"| P4_5
+    P4_5 -->|"SSE push notification"| Customer
+```
+
+#### 2.4 — Administration & Content Management (expanded from Process 7.0)
+
+```mermaid
+flowchart LR
+    SuperAdmin([Super Admin])
+    StudioOwner([Studio Owner])
+
+    DS_Studios[/"D2 — Studios & Catalog"\]
+    DS_Users[/"D1 — Users & Customers"\]
+    DS_Content[/"D7 — CMS & System Settings"\]
+    DS_Audit[/"D8 — Audit Events"\]
+
+    P7_1(["7.1\nStudio Application\nReview"])
+    P7_2(["7.2\nUser Account\nManagement"])
+    P7_3(["7.3\nCMS & Page\nBuilder"])
+    P7_4(["7.4\nTheme, Modules\n& Audio Settings"])
+    P7_5(["7.5\nReview\nModeration"])
+    P7_6(["7.6\nAudit Log\nRecording"])
+
+    SuperAdmin -->|"Approve / reject studio"| P7_1
+    P7_1 <-->|"Studio status update"| DS_Studios
+    P7_1 -->|"Approval event"| P7_6
+
+    SuperAdmin -->|"Create, suspend, archive, delete user"| P7_2
+    StudioOwner -->|"Staff account creation / removal"| P7_2
+    P7_2 <-->|"User records"| DS_Users
+    P7_2 -->|"User action event"| P7_6
+
+    SuperAdmin -->|"Hero, About, FAQs, custom pages"| P7_3
+    P7_3 <-->|"CMS content"| DS_Content
+    P7_3 -->|"Content update event"| P7_6
+
+    SuperAdmin -->|"Theme colors, font, modules, audio"| P7_4
+    P7_4 <-->|"System settings"| DS_Content
+    P7_4 -->|"Settings change event"| P7_6
+
+    SuperAdmin -->|"Approve / hide / reject review"| P7_5
+    P7_5 <-->|"Review visibility update"| DS_Studios
+    P7_5 -->|"Moderation event"| P7_6
+
+    P7_6 -->|"Immutable audit record"| DS_Audit
+```
+
+---
+
+### Level 3 — Third Decomposition
+
+Further decomposes the Booking Creation subprocess (Process 3.3) into its granular steps.
+
+#### 3.1 — Booking Creation Detail (expanded from Process 3.3)
+
+```mermaid
+flowchart LR
+    Customer([Customer])
+
+    DS_Schedules[/"D3 — Availability & Bookings"\]
+    DS_Studios[/"D2 — Studios & Catalog"\]
+    DS_Payments[/"D4 — Payments & GCash Sessions"\]
+
+    P3_3_1(["3.3.1\nSelect Service,\nPackage & Add-ons"])
+    P3_3_2(["3.3.2\nCalculate\nTotal Amount"])
+    P3_3_3(["3.3.3\nChoose Payment\nType & Method"])
+    P3_3_4(["3.3.4\nConflict &\nDouble-Booking Check"])
+    P3_3_5(["3.3.5\nCreate Booking\nRecord"])
+    P3_3_6(["3.3.6\nInitiate Payment\nRecord"])
+    P3_3_7(["3.3.7\nSend Booking\nConfirmation"])
+
+    Customer -->|"Service ID, package ID, add-on IDs"| P3_3_1
+    P3_3_1 <-->|"Catalog items & pricing"| DS_Studios
+    P3_3_1 -->|"Selected items & base prices"| P3_3_2
+
+    P3_3_2 -->|"Computed total & downpayment"| P3_3_3
+    Customer -->|"Downpayment or full payment,\nGCash / Maya / Cash"| P3_3_3
+    P3_3_3 -->|"Payment type & method"| P3_3_4
+
+    P3_3_3 -->|"Requested slot"| P3_3_4
+    P3_3_4 <-->|"Existing bookings & blackouts"| DS_Schedules
+    P3_3_4 -->|"Slot validated / conflict raised"| P3_3_5
+
+    P3_3_5 -->|"New booking row (Pending)"| DS_Schedules
+    P3_3_5 -->|"Booking ID"| P3_3_6
+
+    P3_3_6 -->|"Payment row (Unpaid / Pending Verification)"| DS_Payments
+    P3_3_6 -->|"GCash session row (if applicable)"| DS_Payments
+
+    P3_3_5 -->|"Booking reference & status"| P3_3_7
+    P3_3_7 -->|"Confirmation details"| Customer
+```
 
 ---
 
